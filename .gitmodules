@@ -1,0 +1,3 @@
+[submodule "external/mpgl"]
+	path = external/mpgl
+	url = https://github.com/Bajtazar/MPGL.git

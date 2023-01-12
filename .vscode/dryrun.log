@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/grzegorz/Documents/MPGL-tester'
+make: Leaving directory '/home/grzegorz/Documents/MPGL-tester'
+ 
+make: *** No targets specified and no makefile found.  Stop.
+
