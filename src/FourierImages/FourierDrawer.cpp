@@ -2,8 +2,8 @@
 
 #include <numbers>
 
-FourierDrawer::FourierDrawer(double period)
-    : elapsedTime{0}, period{period / (2. * std::numbers::pi)} {}
+FourierDrawer::FourierDrawer(void)
+    : elapsedTime{0}, counter{0} {}
 
 void FourierDrawer::setPoints(Points points) {
     isDrawing = true;
@@ -13,6 +13,7 @@ void FourierDrawer::setPoints(Points points) {
 
 void FourierDrawer::clear(void) {
     isDrawing = false;
+    counter = 0;
     lines.clear();
 }
 
@@ -20,28 +21,33 @@ void FourierDrawer::transform(mpgl::Transformation2D const& transformator) noexc
     lines.transform(transformator);
 }
 
-mpgl::Vector2f FourierDrawer::draw(mpgl::Vector2f const& start, size_t steps, double shift) {
+static mpgl::Vector2f complexMul(mpgl::Vector2f const& left, mpgl::Vector2f const& right) {
+    return {
+        left[0] * right[0] - left[1] * right[1],
+        left[0] * right[1] + left[1] * right[0]
+    };
+}
+
+mpgl::Vector2f FourierDrawer::draw(mpgl::Vector2f const& start, size_t steps) {
     elapsedTime += std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - lastStamp);
     lastStamp = std::chrono::steady_clock::now();
 
-    double freq = elapsedTime.count() / (1000. * period);
-    auto [lastX, lastY] = start;
+    mpgl::Vector2f point{};
 
     lines.clear();
 
-    for (size_t i = 0; i < std::min(steps, driver.size()); ++i) {
-        auto const& [radius, phase] = driver[i];
-        double const phi = phase + freq * i + shift;
+    for (size_t i = 0; i < steps; ++i) {
+        double value = 2. * std::numbers::pi * i * counter / driver.size();
+        auto current = complexMul(driver[i], { std::cos(value), std::sin(value) }) / float(driver.size());
 
-        double const x = lastX + radius * std::cos(phi);
-        double const y = lastY - radius * std::sin(phi);
-
-        lines.emplace_back(mpgl::Vector2f{lastX, lastY}, mpgl::Vector2f{x, y});
-        lastX = x;
-        lastY = y;
+        lines.emplace_back(start + point, start + point + current);
+        point += current;
     }
-    return {lastX, lastY};
+
+    counter = (counter + 1) % driver.size();
+
+    return point + start;
 }
 
 void FourierDrawer::draw(void) const noexcept {

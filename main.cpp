@@ -23,30 +23,51 @@ class Canva : public mpgl::Drawable2D,
    public:
     Canva(void) noexcept
         : font{"Hack", "/usr/share/fonts/truetype/hack/"},
-          text{font, mpgl::Vector2f{100, 100}, "Liczba współczynników: 1",
-               mpgl::TextOptions{.size = 16, .color=mpgl::colors::white}},
-          drawer{5} {}
+          drawer{}
+    {
+        texts.emplace("coeff", mpgl::Text2D{font, mpgl::Vector2f{100, 140}, "Liczba współczynników: 1",
+               mpgl::TextOptions{.size = 16, .color=mpgl::colors::white}});
+        texts.emplace("t1", mpgl::Text2D{font, mpgl::Vector2f{100, 120}, "Zwiększ liczbę współczynników - strzałka w górę",
+               mpgl::TextOptions{.size = 16, .color=mpgl::colors::white}});
+        texts.emplace("t2", mpgl::Text2D{font, mpgl::Vector2f{100, 100}, "Zmniejsz liczbę współczynników - strzałka w dół",
+               mpgl::TextOptions{.size = 16, .color=mpgl::colors::white}});
+        texts.emplace("t3", mpgl::Text2D{font, mpgl::Vector2f{100, 80}, "Maksymalna liczba współczynników: N",
+               mpgl::TextOptions{.size = 16, .color=mpgl::colors::white}});
+        texts.emplace("t4", mpgl::Text2D{font, mpgl::Vector2f{100, 60}, "Minimalna liczba współczynników: O",
+               mpgl::TextOptions{.size = 16, .color=mpgl::colors::white}});
+        texts.emplace("t5", mpgl::Text2D{font, mpgl::Vector2f{100, 40}, "Wyczyść płutno: C",
+               mpgl::TextOptions{.size = 16, .color=mpgl::colors::white}});
+        texts.emplace("t6", mpgl::Text2D{font, mpgl::Vector2f{100, 20}, "Wyczyść tylko rysowany kontur: J",
+               mpgl::TextOptions{.size = 16, .color=mpgl::colors::white}});
+        cross.emplace_back(mpgl::Vector2f{430, 300}, mpgl::Vector2f{470, 300},  mpgl::colors::gray);
+        cross.emplace_back(mpgl::Vector2f{450, 280}, mpgl::Vector2f{450, 320},  mpgl::colors::gray);
+    }
 
     void draw(void) const noexcept {
         points.draw();
         outline.draw();
         drawer.draw();
-        text.draw();
-        // lines.draw();
+        for (auto const& [_, text] : texts)
+            text.draw();
+        cross.draw();
     }
 
     void transform(mpgl::Transformation2D const& transformator) noexcept {
         points.transform(transformator);
         outline.transform(transformator);
         drawer.transform(transformator);
-        text.transform(transformator);
-        //lines.transform(transformator);
+        for (auto& [_, text] : texts)
+            text.transform(transformator);
+        cross.transform(transformator);
     }
 
     void onMouseMotion(mpgl::Vector2f const& position) noexcept {
         static constexpr mpgl::Vector2f center{450, 300};
         if (isClicked) {
-            points.emplace(position, mpgl::colors::white);
+            pointsShape.emplace_back(position);
+            points = mpgl::LineStrip2D{};
+            for (auto const& x : pointsShape)
+                points.emplace(x, mpgl::colors::gray);
 
             auto [x, y] = position - center;
             seeds.emplace_back(x, y);
@@ -54,37 +75,62 @@ class Canva : public mpgl::Drawable2D,
     }
 
     void onMousePress(mpgl::MouseButton const& button) noexcept {
-        if (button == mpgl::MouseButton::Right) isClicked = true;
+        if (button == mpgl::MouseButton::Left) isClicked = true;
     }
 
     void onMouseRelease(mpgl::MouseButton const& button) noexcept {
-        if (button == mpgl::MouseButton::Right) {
+        if (button == mpgl::MouseButton::Left) {
             isClicked = false;
 
             drawer.setPoints(fourier(seeds));
 
+            drawers = drawer.size();
+            texts.at("coeff") = "Liczba współczynników: " + std::to_string(drawers);
+
             isDrawing = true;
-            // points = mpgl::Points2D{};
         }
     }
 
     void onKeyPress(mpgl::KeyboardKey const& key) noexcept {
-        if (key == mpgl::KeyboardKey::C) {
-            seeds.clear();
-
-            outline.clear();
-            drawer.clear();
-            isDrawing = false;
-            isClicked = false;
-            points = mpgl::Points2D{};
-        } else if (key == mpgl::KeyboardKey::V) {
-            ++drawers;
-            text = "Liczba współczynników: " + std::to_string(drawers);
-        } else if (key == mpgl::KeyboardKey::B) {
-            --drawers;
-            text = "Liczba współczynników: " + std::to_string(drawers);
-        } else if (key == mpgl::KeyboardKey::J) {
-            outline.clear();
+        switch (key) {
+            case mpgl::KeyboardKey::C: {
+                seeds.clear();
+                outline = mpgl::LineStrip2D{};
+                outlineShape.clear();
+                drawer.clear();
+                isDrawing = false;
+                isClicked = false;
+                points = mpgl::LineStrip2D{};
+                pointsShape.clear();
+                return;
+            }
+            case mpgl::KeyboardKey::Up: {
+                ++drawers;
+                texts.at("coeff") = "Liczba współczynników: " + std::to_string(drawers);
+                return;
+            }
+            case mpgl::KeyboardKey::Down: {
+                --drawers;
+                texts.at("coeff") = "Liczba współczynników: " + std::to_string(drawers);
+                return;
+            }
+            case mpgl::KeyboardKey::J: {
+                outline = mpgl::LineStrip2D{};
+                outlineShape.clear();
+                return;
+            }
+            case mpgl::KeyboardKey::O: {
+                drawers = 1;
+                texts.at("coeff") = "Liczba współczynników: " + std::to_string(drawers);
+                return;
+            }
+            case mpgl::KeyboardKey::N: {
+                drawers = drawer.size();
+                texts.at("coeff") = "Liczba współczynników: " + std::to_string(drawers);
+                return;
+            }
+            default:
+                return;
         }
     }
 
@@ -97,60 +143,39 @@ class Canva : public mpgl::Drawable2D,
 
         auto const& [x, y] = drawer.draw({450, 300}, drawers);
 
-        outline.emplace_back(mpgl::colors::red, mpgl::Vector2f{x, y});
-
-        // lines.clear();
-
-        // double lastX = 450, lastY = 300;
-
-        // double freq = elapsedTime.count() / 5'000.;
-
-        // for (size_t i = 0; i < 12; ++i) {
-        //     auto const& [radius, phase] = driver[i];
-        //     // freq * time = i * time
-        //     double const phi = phase + freq * i;
-
-        //     double const x = lastX + radius * std::cos(phi);
-        //     double const y = lastY + radius * std::sin(phi);
-
-        //     lines.emplace_back(mpgl::Vector2f{lastX, lastY}, mpgl::Vector2f{x, y});
-        //     lastX = x;
-        //     lastY = y;
-        // }
-
-        // outline.emplace_back(mpgl::colors::white, mpgl::Vector2f{lastX, lastY});
-
-        // elapsedTime += delta;
+        outlineShape.emplace_back(x, y);
+        outline = mpgl::LineStrip2D{};
+        for (auto const& point : outlineShape)
+            outline.emplace(point, mpgl::colors::red);
     }
 
    private:
     bool isClicked = false;
     bool isDrawing = false;
 
-    std::chrono::milliseconds elapsedTime = 0ms;
-
     std::vector<mpgl::Vector2f> seeds;
 
-    mpgl::DrawableCollection<mpgl::Points2D> outline;
+    mpgl::LineStrip2D outline;
+    std::vector<mpgl::Vector2f> outlineShape;
 
-    mpgl::Points2D points;
+    mpgl::LineStrip2D points;
+    std::vector<mpgl::Vector2f> pointsShape;
+
+    std::map<std::string, mpgl::Text2D> texts;
 
     mpgl::Font font;
-    mpgl::Text2D text;
 
+    mpgl::DrawableCollection<mpgl::Line2D> cross;
 
     size_t drawers = 1;
-
-    std::chrono::milliseconds const Period = 5s;
-
     FourierDrawer drawer;
 };
 
 int main(void) {
-    mpgl::Window window{{900, 600}, "fourier"};
+    mpgl::Window window{{900, 600}, "Płutno Fouriera"};
 
     window.emplaceDrawable<Canva>();
 
-    window.windowLoop();
+    window.windowLoop(mpgl::Color{0.2f, 0.3f, 0.3f, 1.f});
     return 0;
 }

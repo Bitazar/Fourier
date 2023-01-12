@@ -12,7 +12,7 @@ extern "C" {
         auto const& [x, y] = data[i - 1];
         auto const& [xe, ye] = data[i];
         result.emplace_back(x, y);
-        for (float delta = 0.1; delta < 1; delta += 0.5)
+        for (float delta = 0.1; delta < 1; delta += 0.1)
             result.emplace_back(std::lerp(x, xe, delta), std::lerp(y, ye, delta));
     }
     result.emplace_back(data.front());
@@ -40,7 +40,7 @@ extern "C" {
 [[nodiscard]] Fourier::Points Fourier::postprocessing(Complex const& data) const {
     Points result;
     for (auto const& number : data)
-        result.push_back(mpgl::cartesianToPolar(mpgl::Vector2f{number.real(), -number.imag()} / float(data.size())));
+        result.push_back(mpgl::Vector2f{number.real(), number.imag()});
     return result;
 }
 

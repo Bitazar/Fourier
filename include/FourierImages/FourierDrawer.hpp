@@ -8,7 +8,7 @@ class FourierDrawer : public mpgl::Transformable2D,
 public:
     using Points = std::vector<mpgl::Vector2f>;
 
-    explicit FourierDrawer(double period);
+    explicit FourierDrawer(void);
 
     void setPoints(Points points);
 
@@ -17,9 +17,12 @@ public:
 
     void clear(void);
 
-    mpgl::Vector2f draw(mpgl::Vector2f const& start, size_t steps, double shift = 0);
+    mpgl::Vector2f draw(mpgl::Vector2f const& start, size_t steps);
 
     void draw(void) const noexcept;
+
+    size_t size(void) const noexcept
+        { return driver.size(); }
 
     void transform(mpgl::Transformation2D const& transformator) noexcept;
 private:
@@ -29,5 +32,5 @@ private:
     std::chrono::steady_clock::time_point lastStamp;
     std::chrono::milliseconds elapsedTime;
     Points driver;
-    double const period;
+    size_t counter;
 };
